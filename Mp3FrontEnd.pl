@@ -350,8 +350,7 @@ if ($status_flag == 1) {
 	$pid=fork();
 	$clear_flag =1;
 	
-	if($pid=fork())
-	{;}
+
 	
 if ($pid == 0 and $status_flag == 1 ){$status_flag=0;status_line();}
 if ($pid!=0 and $key = getch() ) 
