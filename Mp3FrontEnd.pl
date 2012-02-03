@@ -124,7 +124,7 @@ sub window
 	return 1;
 }
 
-sub playerwindow 
+sub player_window 
 {#draw the song info window
 	my $song=shift;
 	my $left =$border_left+3;
@@ -339,7 +339,7 @@ sub get_draw_files
 	get_files($currentdir);
 	$maxoffset = scalar(@FileDir) - $elements_in_browser  ;
 	browser_window();	
-	playerwindow($songPlayed);
+	player_window($songPlayed);
 	move($cursor,1);
 }
 sub clear_player
@@ -494,9 +494,249 @@ if ($pid!=0 and $key = getch() and $pid!=$pid1)
 			kill_player();
 		}
 	}
-	if ($key eq "268") {last;}
+	if ($key eq "268") 
+	{
+		if($status_flag ==1){kill_player();}
+		last;
+	}
 }
 } while(1>0);
 
 quit();
 endwin;
+
+
+__END__
+=head1 NAME
+
+FrontEnd for MPG123 mp3 player
+
+=head1 SYNOPSIS
+
+Before executing the file you must declare the place of the MPG123 player 
+and the place where your music is.By  default the values are 
+
+=over 2
+
+=item B<MPG123 :> '/usr/bin/mpg123' 
+
+=item B<Musicfolder :> '/home/egzoti4en/Desktop'
+
+=back
+
+Here is a list of all the modules used:
+
+=over 4
+
+=item B<AtExit>
+
+=item B<IO::Dir>
+
+=item B<Curses>
+
+=item B<MP3::Info>
+
+=back
+
+=head1 DESCRIPTION
+
+Here is a detailed descrition of all the main variables and functions used
+
+=head2 Variables
+
+=head2 Player
+
+Contains the location of the mp3 player used.
+
+=head2 basedir
+
+Contains the location of the starting Music folder
+
+=head2 currentdir
+
+Contains the information of the currentdir that is show in the browse window
+
+=head2 Title
+
+Contains the title show in the upper part of the FrontEnd
+
+=head2 author
+
+Contains information abount the first and last name of the author.This is 
+variable is show in the lower part of the FrontEnd
+
+=head2 pid and pid1
+
+Contains information for the process that are started when a song is played
+
+=head2 KillPlayer
+
+Contains information for the plase of the kill all command
+
+=head2 Global Arrays
+
+=head3 Directories 
+
+Contains all the current directories
+
+=head3 Files
+
+Contains all the current files
+
+=head3 FileDir
+
+Contains all the current directories + files
+
+=head3 old_dir
+
+Contains all the base directories
+
+=head3 old_offset
+
+Contains the old offsets
+
+=head3 old_choosen_elemnt,old_cursor,tempFileDir
+
+These are used for the playing of the next song
+
+=head2 Functions
+
+=head2 window
+
+The window subroutine draws the browser window of the FronEnd and 
+the SongInfo part. This subroutine uses the Curses module for drawing the
+FrontEnd.The main variables used here are: 
+
+=over 4
+
+=item B<border_left>
+
+Coordinates of the left part of the windows drawn.
+
+=item B<border_right>
+
+Coordinates of the right part of the windows drawn.
+
+=item B<border_up>
+
+Coordinates of the upper part of the windows drawn.
+
+=item B<border_down>
+
+Coordinates of the lower part of the windows drawn.
+
+=back
+
+=head2 get_files
+
+This subroutine goes to the MusicFolder and reads of the files which are
+*.mp3 and all the folders. It uses the module use IO::Dir.Here are the main
+sorted arrays that it fills with information:
+ 
+=over 3
+
+=item B<Directories>
+
+=item B<Files>
+
+=item B<FileDir>
+
+This array contains the Files and the Directories.It is used for easier access
+to the Files and Folders.
+
+=back
+
+=head2 print_border
+
+This subroutine gets as an imput a cordinates and a string. It shows on the
+screen the String and if it is bigger than the coordinates it cuts it down.
+
+=head2 browser_window
+
+After the execution of get_files it is time to draw the Browser part of the
+frontend player. It calls the window subroutine with the correct input.
+Then the files and folders are drawn using the print_border subroutine.
+Here the variable B<offset> is very important as this variable shows 
+what part of the FileDir array to be shown on the screen. Also B<offset>
+shows if there is a need of showing a '+' sign which means that there are 
+more files/folders to be shown in the upper or lower part of the screen.
+
+=head2 player_window
+
+This subroutine gets the information from the song that is being played 
+and shows it on the screen in the Song Info window.The main window is again 
+drawn using the B<window> subroutine. For collecting the information of the
+song Title,SongName,Album... the subroutine uses the MP3::Info module
+
+=head2 get_draw_files
+
+This subroutine combines the calling of the following functions.
+
+=over 4
+
+=item B<clear>
+
+=item B<get_files>
+
+=item B<browser_window>
+
+=item B<player_window>
+
+=back
+
+=head2 addnul
+
+This subroutine adds a 0 in the begining of a number if it is <10.
+This used for the showing the time which is remaining and the time which 
+has already elapsed
+
+=head2 status_line
+
+This subroutine draws the remaining and elapsed time and the status line.
+It is executed in another process as this couting of time is made using 
+a sleep activity and a cycle. The execution in another process is needed 
+for the FrontEnd not to block during playing of the song. Again the info
+is taken from the song using the MP3::Info module.
+
+=head2 player
+
+This subroutine takes as a parameter the song that needs to be played.It
+executes the player that is defined by the global variable B<Player>.
+
+=head2 clear_player
+
+This subroutine is used instead of the function B<clear()> as when clear()
+is used and the song is played the status line disappears.
+
+=head2 play_next_song
+
+This subroutine is used to play the next song after the current has finished.
+The subroutine uses the following global variables to know which is the next
+song 
+
+=over 3
+
+=item B<choosen_temp>
+
+=item B<tempFileDir>
+
+=item B<tempdir>
+
+=back
+
+=head2 kill_player
+
+This subroutine is used to kill the player and to stop the status line
+the count of the elapsed seconds.
+
+=head2 quit
+
+This subroutine describes what happens on exit. This is done using the 
+module AtExit.
+
+=head1 AUTHOR
+
+Emiliyan Yankov, E<lt>eyankov.vn@gmail.comE<gt>
+
+
+=cut
