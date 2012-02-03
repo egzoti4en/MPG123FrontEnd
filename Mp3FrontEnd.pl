@@ -6,15 +6,15 @@ use Curses;
 use MP3::Info;
 
 
-
 $Player = "/usr/bin/mpg123";
 $basedir = "/home/egzoti4en/Desktop";
 $currentdir = $basedir;
-#$old_dir =$basedir;
 $Title = "Egzoti4en ";
 $author = "Emiliyan Yankov";
 $pid = 1;
 $pid1 = 2;
+$KillPlayer = "/usr/bin/killall";
+
 
 #----------------------------------------------------------------------------
 #Global Arrays
@@ -26,13 +26,18 @@ our @old_dir;
 our @old_offset;
 our @old_choosen_elemnt;
 our @old_cursor;
+our @tempFileDir;
+
+#-----------------------------------------------------------------------------
+#Song info scalars
 $songPlayed =" ";
 $time = 0.10;
 $remseconds = 0;
 $songseconds = 1;
 $status_flag = 0;
-#share($status_flag);
 $clear_flag = 0;
+$tempdir =$currentdir;
+$choosen_temp = 0;
 #----------------------------------------------------------------------------
 #Curses
 
@@ -40,7 +45,7 @@ initscr;
 keypad(1);
 clear;
 noecho();
-atexit(\&quit, "FrontEnd exited successfully\n");
+atexit(\&quit, "Bye Bye\n");
 
 #-----------------------------------------------------------------------------
 # Window Properties
@@ -50,11 +55,11 @@ $border_down = 23;
 $border_left = 0;
 $border_right = 78;
 
-
+#position of browser elements
 $startposition_up = $border_up + 15;
 $startposition_left =$border_left + 2;
-
 $endposition = $border_down - 4;
+
 # Curosr variables
 $cursor = $startposition_up + 1;
 $choosen_element=0;
@@ -109,9 +114,9 @@ sub window
 	
 	if($flag == 1)
 	{#Print Ending in the lower part
-	$centertext = $width - length($Ending);
-	$centertext = int ( $centertext/2 );
-	addstr($down, $centertext, $Ending) if $Ending && length($Ending) <= $width;
+		$centertext = $width - length($Ending);
+		$centertext = int ( $centertext/2 );
+		addstr($down, $centertext, $Ending) if $Ending && length($Ending) <= $width;
 	}
 
 	
@@ -146,14 +151,12 @@ sub playerwindow
 		addstr($up + 3 , $left +2, "Title:");
 		if (defined $mp3_info->{TITLE}) {addstr($up + 3 , $left + 8, $mp3_info->{TITLE} );}
 		else {my $title = pop(@Song);addstr($up + 3 , $left + 8, substr($title,0,length($title)-4));}
+
 		$mp3_info = get_mp3info("$song");
-		
 		addstr($up + 3 , $left +45, "Bitrate:");
 		if (defined $mp3_info->{BITRATE}) {addstr($up + 3 , $left + 53, "$mp3_info->{BITRATE} kbit/s" );}
-		
 		addstr($up + 5 , $left +2, "Frequency:");
 		if (defined $mp3_info->{FREQUENCY}) {addstr($up + 5 , $left + 12,"$mp3_info->{FREQUENCY} kHz" );}
-		
 		addstr($up + 5 , $left +45, "Stereo:");
 		if (defined $mp3_info->{STEREO}) {addstr($up + 5 , $left + 53, $mp3_info->{STEREO} ? "Yes" : "No"  );}
 	}
@@ -170,7 +173,7 @@ sub playerwindow
 }
 
 sub player
-{
+{#calls the player and starts the song
 	get_draw_files();
 	
 				close(STDOUT);
@@ -184,7 +187,7 @@ sub player
 	
 }
 sub get_files
-{ #get   files from currend directory
+{#get files from currend directory
 	
 	undef @Directories;
 	undef @Files;
@@ -207,7 +210,6 @@ sub get_files
 		@Files = sort(@Files);
 		@FileDir = (@Directories,@Files);
 }
-
 sub print_border 
 {#cut elements if outside of border
 
@@ -222,8 +224,6 @@ sub print_border
 
 	return 1;
 }
-
-
 sub browser_window
 {#draw the browser window
 		
@@ -241,15 +241,14 @@ sub browser_window
 		# position in the browser
 		$position = $startposition_up +1 ;
 		
-	
 		#show + if more elements than height on the screen
 		addstr($startposition_up, $startposition_left-1, "+") if $offset > 0 && $maxoffset >0;
 		addstr($endposition+3, $startposition_left-1, "+")   if $offset <= scalar(@FileDir) -1 - $elements_in_browser && $maxoffset >0;
 
 		$endoffpos = $elements_in_browser ;
 		$offpos = $offset;
-		foreach (@FileDir) {
-			
+		foreach (@FileDir) 
+		{#prints the files in @FileDir	
 			$offpos--;
 			if  ($offpos>= 0){next;}
 		    last if $endoffpos <=0;
@@ -269,35 +268,31 @@ sub browser_window
 			$position++;
 			$endoffpos--;
 		}
-
 	refresh();
-
 }
 sub addnul
-{
+{#check the null of min and sec
 	my $num = shift;
 	if ($num <10) {return "0"."$num";}
     else {return "$num";}
 }
-	
 sub status_line
-{	
-	
+{#draws the status line	
 	my $mp3_info = get_mp3info("$songPlayed");	
-			if ( defined $mp3_info ->{MM} && defined $mp3_info ->{SS} ) 
-			{
-				$songseconds = $mp3_info ->{SS} + $mp3_info->{MM}*60;
-			}	
-		$time = 2;
-	while($time <= $songseconds && $status_flag == 1 )
-	{		
+		if ( defined $mp3_info ->{MM} && defined $mp3_info ->{SS} ) 
+		{
+			$songseconds = $mp3_info ->{SS} + $mp3_info->{MM}*60;
+		}	
+	$time = 2;
+	while($time <= $songseconds)
+	{#cycle till the time ends of the song		
 			
 		    
 		    select(undef,undef,undef,0.05);
 		    $time+=0.05;
 		    refresh();
 			#remaining time
-			addstr(15,10,$status_flag);
+	
 				$remseconds = $songseconds - $time;
 				my $x = ((($remseconds)/60)%60);
 				my $min = int($x);
@@ -313,33 +308,32 @@ sub status_line
 				$sec = int(($time)%60);
 				$sec = addnul($sec);
 				addstr($border_up+10, $border_left+1, "$min:$sec");
-
+			
+			#draw the status line
 				$x = ( (($border_right-3)-($border_left+3) -1) * $time);
 				$x/=$songseconds;
 				$x = int($x);
-				foreach my $i (0..$x){addstr($border_up+11, $i+$border_left+4, "#" );}
+				foreach my $i (0..$x){$i%2 ? addstr($border_up+11, $i+$border_left+4, "\\" ) :
+											 addstr($border_up+11, $i+$border_left+4, "/" ) ;}
 				addstr($border_up+11, $border_left +3, "|");
 				addstr($border_up+11, $border_right -3, "|");
 				#curs_set();
 	}		
-	
 	refresh();
 	get_draw_files();
 	$clear_flag =0;
 	refresh();
+	play_next_song();
 }
-
-
-
-sub quit {#execute upon quiting using AtEscape
+sub quit 
+{#execute upon quiting using AtEscape
 	
 	endwin();
 	print "@_\n";
 	exit(0);
 }
-
 sub get_draw_files 
-{#get files and directories and draw the browse window
+{#get files and directories and draw the windows
 	if($clear_flag == 0){clear();}
 	else {clear_player()};
 	get_files($currentdir);
@@ -347,7 +341,6 @@ sub get_draw_files
 	browser_window();	
 	playerwindow($songPlayed);
 	move($cursor,1);
-	
 }
 sub clear_player
 {#clears everythin but the status line
@@ -373,24 +366,45 @@ sub clear_player
 				addstr($j,$i," ");
 			}
 		}
-
 }
+sub kill_player()
+{#kills the player and the Status line
+	$status_flag = 0;
+	system($KillPlayer, "$Player");
+	kill('TERM', $pid);
+}
+sub play_next_song()
+{#plays next song from the temp choosen,dir,tempFileDir
+	$choosen_temp=$choosen_temp - 1 ;
+	if(defined $tempFileDir[abs($choosen_temp)])
+	{
+		kill('TERM', $pid1);
+		$songPlayed  = $tempdir."/".$tempFileDir[abs($choosen_temp)] ;
+		clear();
+		$clear_flag = 1;
+		get_draw_files();
+		$status_flag = 1;
+		#async(\&status_line)->detach;
+		if($pid1 = fork()){status_line();}
+		else{player($songPlayed);}
+		
+		nodelay(0);
+	}
+}
+
 #---------------------------------------------------------------------------
 #Star of execution of program
 get_draw_files();
 
-
-
 do 
-{#Cycle waiting for Key to be inputed Escape at CTRL + C
+{#Cycle waiting for Key to be inputed.Escape at F4 to stop
 #-------------------------------------------------------------------------------
 #Curser Variables
 $maxoffset = scalar(@FileDir) - $elements_in_browser ;
 move($cursor,1);
 
-
 if ($pid!=0 and $key = getch() and $pid!=$pid1) 
-{ 
+{#checks the inputed key
 	get_draw_files();
 	if ( $key eq "259" ) 
 	{	
@@ -409,11 +423,11 @@ if ($pid!=0 and $key = getch() and $pid!=$pid1)
 		
 		if($cursor != $endposition +2 && abs($choosen_element)<scalar(@FileDir) -1)
 		{
-		$choosen_element--;
-		if($maxoffset>0){$offset++;}
-		else {$cursor++;}
-		if(abs(scalar(@FileDir) -  $elements_in_browser) < $offset){$cursor++;$offset--;}
-		get_draw_files();	
+			$choosen_element--;
+			if($maxoffset>0){$offset++;}
+			else {$cursor++;}
+			if(abs(scalar(@FileDir) -  $elements_in_browser) < $offset){$cursor++;$offset--;}
+			get_draw_files();	
 		}
 	}
 	if ($key eq "\n" || $key eq "261")
@@ -435,20 +449,27 @@ if ($pid!=0 and $key = getch() and $pid!=$pid1)
 		{
 			if (defined $FileDir[$choosen_element])
 			{
-				$songPlayed  = $currentdir."/".$FileDir[abs($choosen_element)] ;
 				
+				#info for playing next song
+				$choosen_temp = $choosen_element;
+				@tempFileDir = @FileDir;
+				$tempdir = $currentdir;
+				
+				if($status_flag == 1){kill_player();}
+				
+				$songPlayed  = $currentdir."/".$FileDir[abs($choosen_element)] ;
+				clear();
 				$clear_flag = 1;
 				get_draw_files();
-				
+				$status_flag = 1;
 				if($pid = fork())
-				{;}
+					{;}
 				else 
-				{$status_flag = 1;
-				#async(\&status_line)->detach;
-				if($pid1 =fork())
-				{status_line();}
-				else{
-				player($songPlayed);}
+					{
+						$status_flag = 1;
+						#async(\&status_line)->detach;
+						if($pid1 =fork()){status_line();}
+						else{player($songPlayed);}
 				}
 				nodelay(0);
 			}
@@ -459,19 +480,23 @@ if ($pid!=0 and $key = getch() and $pid!=$pid1)
 	{
 			if($currentdir ne $basedir)
 			{
-			$currentdir=pop(@old_dir);
-			$offset=pop(@old_offset);
-			$choosen_element=pop(@old_choosen_elemnt);
-			$cursor=pop(@old_cursor);
-			get_draw_files();		
+				$currentdir=pop(@old_dir);
+				$offset=pop(@old_offset);
+				$choosen_element=pop(@old_choosen_elemnt);
+				$cursor=pop(@old_cursor);
+				get_draw_files();		
 			}
 	}
 	if ($key eq ' ')
-	{$status_flag =0;
-	addstr(16,10,$status_flag);}
-	if ($key eq ERR){exit(0);}
+	{
+		if($status_flag == 1)
+		{	
+			kill_player();
+		}
+	}
+	if ($key eq "268") {last;}
 }
-
 } while(1>0);
 
+quit();
 endwin;
